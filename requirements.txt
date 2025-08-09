@@ -4,4 +4,4 @@ passlib[bcrypt]
 pyjwt
 uvicorn
 sqlalchemy
-
+email-validator==1.3.1
