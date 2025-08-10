@@ -75,6 +75,10 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     email: EmailStr
     password: str
+    
+class ProcessTextBody(BaseModel):
+    text: str
+
 
 # ---------------- Helpers ----------------
 def get_db():
@@ -300,3 +304,24 @@ def admin_metrics(user: User = Depends(current_user)):
             },
             "latest_users": latest_users,
         }
+# ================================================
+#                Core Business Logic
+# ================================================
+
+@app.post("/api/process-text")
+def process_text(body: ProcessTextBody, user: User = Depends(current_user)):
+    # 步驟 1：驗證使用者身份 (Depends(current_user) 已經幫我們做好了)
+    # 如果沒有有效的 Token，程式碼根本不會執行到這裡。
+
+    # 步驟 2：執行核心任務 (目前先用一個簡單的例子：計算字數)
+    word_count = len(body.text.split())
+
+    # 步驟 3：準備回傳給使用者的結果
+    result = {
+        "message": "Text processed successfully.",
+        "input_text": body.text,
+        "word_count": word_count,
+        "user_email": user.email, # 加上這個來確認我們正確地識別了使用者
+    }
+    
+    return result
