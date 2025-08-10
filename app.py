@@ -207,3 +207,96 @@ def admin_ping(admin_user: Annotated[User, Depends(admin_only)]):
 # ====================================================================
 #  ↑↑↑ Debug 路由已被移除 ↑↑↑
 # ====================================================================
+# ================================================
+#                Admin Panel APIs
+# ================================================
+
+@app.get("/admin/users")
+def admin_list_users(
+    user: User = Depends(current_user),
+    page: int = 1,
+    page_size: int = 20,
+    q: Optional[str] = None,
+    sort: str = "-created_at",
+):
+    admin_only(user)
+
+    if page < 1: page = 1
+    if page_size < 1: page_size = 20
+    if page_size > 200: page_size = 200
+
+    with SessionLocal() as db:
+        query = db.query(User)
+
+        if q:
+            kw = f"%{q.strip().lower()}%"
+            query = query.filter(
+                (func.lower(User.email).like(kw)) | (User.email_norm.like(kw))
+            )
+
+        if sort.lstrip("-") == "email":
+            col = func.lower(User.email)
+        else:
+            col = User.created_at
+        
+        if sort.startswith("-"):
+            query = query.order_by(col.desc())
+        else:
+            query = query.order_by(col.asc())
+
+        total = query.count()
+        rows = query.offset((page - 1) * page_size).limit(page_size).all()
+
+        items = [{
+            "id": r.id,
+            "email": r.email,
+            "role": r.role,
+            "is_admin": bool(r.is_admin),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "minutes_balance_seconds": int(r.minutes_balance_seconds or 0),
+            "free_quota_seconds_remaining": int(r.free_quota_seconds_remaining or 0),
+            "last_quota_reset_month": r.last_quota_reset_month or "",
+        } for r in rows]
+
+        return {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "items": items,
+        }
+
+@app.get("/admin/metrics")
+def admin_metrics(user: User = Depends(current_user)):
+    admin_only(user)
+    now = datetime.utcnow()
+    today_utc = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    since_7d = now - timedelta(days=7)
+
+    with SessionLocal() as db:
+        total_users = db.query(func.count(User.id)).scalar() or 0
+        new_users_today = db.query(func.count(User.id)).filter(User.created_at >= today_utc).scalar() or 0
+        active_7d = db.query(func.count(User.id)).filter(User.updated_at >= since_7d).scalar() or 0
+        admin_users = db.query(func.count(User.id)).filter(User.is_admin == True).scalar() or 0
+
+        latest_rows = (db.query(User)
+                         .order_by(User.created_at.desc())
+                         .limit(10).all())
+        latest_users = [{
+            "id": r.id,
+            "email": r.email,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "is_admin": bool(r.is_admin),
+            "role": r.role,
+        } for r in latest_rows]
+
+        return {
+            "generated_at": now.isoformat(),
+            "totals": {
+                "total_users": total_users,
+                "admin_users": admin_users,
+                "new_users_today": new_users_today,
+                "active_7d": active_7d,
+            },
+            "latest_users": latest_users,
+        }
