@@ -1,17 +1,16 @@
-import os, time
+import os, time, json
 from datetime import datetime
 from typing import Optional, Annotated
 
+import jwt
 from fastapi import FastAPI, HTTPException, Depends, Header
-app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from passlib.hash import bcrypt
 from pydantic import BaseModel, EmailStr
 
-import jwt
-from passlib.hash import bcrypt
-
 from models import init_db, SessionLocal, User
+
 
 # ---------------- Config ----------------
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev_secret_change_me")
@@ -42,7 +41,7 @@ def custom_openapi():
         "scheme": "bearer",
         "bearerFormat": "JWT",
     }
-    # 讓所有路由預設套用 Bearer（右上鎖頭）
+    # 讓所有路由預設套用 Bearer（Swagger 右上鎖頭）
     for path in schema.get("paths", {}).values():
         for op in path.values():
             op.setdefault("security", []).append({"BearerAuth": []})
@@ -81,25 +80,12 @@ def month_key_now():
     now = datetime.utcnow()
     return f"{now.year:04}-{now.month:02}"
 
-@app.get("/me")
-def me(user: User = Depends(current_user)):
-    # 全部用 getattr，缺欄位或 None 都有安全預設值
-    email = getattr(user, "email", "")
-    role = getattr(user, "role", "free")
-    is_admin = bool(getattr(user, "is_admin", False))
-    minutes_balance_seconds = int(getattr(user, "minutes_balance_seconds", 0) or 0)
-    free_quota_seconds_remaining = int(getattr(user, "free_quota_seconds_remaining", 0) or 0)
-    last_quota_reset_month = getattr(user, "last_quota_reset_month", "") or ""
-
-    return {
-        "email": email,
-        "role": role,
-        "is_admin": is_admin,
-        "minutes_balance_seconds": minutes_balance_seconds,
-        "free_quota_seconds_remaining": free_quota_seconds_remaining,
-        "last_quota_reset_month": last_quota_reset_month,
-    }
-
+def ensure_monthly_quota(user: User):
+    """每月免費額度重置"""
+    mk = month_key_now()
+    if user.last_quota_reset_month != mk:
+        user.free_quota_seconds_remaining = 1800
+        user.last_quota_reset_month = mk
 
 def create_token(user: User) -> str:
     payload = {
@@ -123,6 +109,7 @@ def current_user(
         uid = data["uid"]
     except Exception:
         raise HTTPException(401, "Invalid token")
+
     with SessionLocal() as db:
         user = db.query(User).filter(User.id == uid).first()
         if not user:
@@ -173,29 +160,25 @@ def login(body: LoginBody):
 # ---------------- API ----------------
 @app.get("/me")
 def me(user: User = Depends(current_user)):
+    # 安全取值，避免 None 造成 500
     return {
-        "email": user.email,
-        "role": user.role,
-        "is_admin": user.is_admin,
-        "minutes_balance_seconds": user.minutes_balance_seconds,
-        "free_quota_seconds_remaining": user.free_quota_seconds_remaining,
-        "last_quota_reset_month": user.last_quota_reset_month,
+        "email": getattr(user, "email", ""),
+        "role": getattr(user, "role", "free"),
+        "is_admin": bool(getattr(user, "is_admin", False)),
+        "minutes_balance_seconds": int(getattr(user, "minutes_balance_seconds", 0) or 0),
+        "free_quota_seconds_remaining": int(getattr(user, "free_quota_seconds_remaining", 0) or 0),
+        "last_quota_reset_month": getattr(user, "last_quota_reset_month", "") or "",
     }
 
 @app.get("/api/health")
 def health():
     return {"ok": True, "version": app.version}
 
-# ---- Debug（看伺服器實際收到的 Authorization）----
-from typing import Optional, Annotated
-from fastapi import Header
-import json
-
+# ---------------- Debug（可用後移除） ----------------
 @app.get("/debug/echo_auth")
 def debug_echo_auth(Authorization: Annotated[Optional[str], Header()] = None):
     return {"authorization": Authorization}
 
-# ---- Debug（解碼 token + 檢查 DB 是否有該用戶）----
 @app.get("/debug/decode")
 def debug_decode(Authorization: Annotated[Optional[str], Header()] = None):
     if not Authorization or not Authorization.lower().startswith("bearer "):
@@ -209,7 +192,7 @@ def debug_decode(Authorization: Annotated[Optional[str], Header()] = None):
 
     with SessionLocal() as db:
         user = db.query(User).filter(User.id == data.get("uid")).first()
-        result = {
+        return {
             "decoded": data,
             "db_user": None if not user else {
                 "id": user.id,
@@ -218,11 +201,3 @@ def debug_decode(Authorization: Annotated[Optional[str], Header()] = None):
                 "role": user.role
             }
         }
-        print("[DEBUG][JWT DECODE]", json.dumps(result, ensure_ascii=False))
-        return result
-
-
-# ---- Debug（只用來檢查實際收到的 Authorization；之後可以移除）----
-@app.get("/debug/echo_auth")
-def debug_echo_auth(Authorization: Annotated[Optional[str], Header()] = None):
-    return {"authorization": Authorization}
