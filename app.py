@@ -194,7 +194,8 @@ def me(user: Annotated[User, Depends(current_user)]):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": app.version}
+    return {"ok": True, "version": app.version, "deployment_version": "v2-with-deduction"}
+
 
 # ====================================================================
 #  ↓↓↓ 新增的管理員專用路由 ↓↓↓
