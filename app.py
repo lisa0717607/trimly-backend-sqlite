@@ -9,7 +9,10 @@ from fastapi.openapi.utils import get_openapi
 from passlib.hash import bcrypt
 from pydantic import BaseModel, EmailStr
 
-from models import init_db, SessionLocal, User, Session
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session 
+
+from models import init_db, SessionLocal, User 
 
 
 # ---------------- Config ----------------
