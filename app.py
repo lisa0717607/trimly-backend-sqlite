@@ -1,5 +1,5 @@
 import os, time, json
-from datetime import datetime, timedelta
+#from datetime import datetime, timedelta
 from typing import Optional, Annotated
 
 import jwt
@@ -9,7 +9,7 @@ from fastapi.openapi.utils import get_openapi
 from passlib.hash import bcrypt
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+#from sqlalchemy import func
 from models import init_db, SessionLocal, User
 
 
@@ -76,8 +76,8 @@ class LoginBody(BaseModel):
     email: EmailStr
     password: str
     
-class ProcessTextBody(BaseModel):
-    text: str
+#class ProcessTextBody(BaseModel):
+#    text: str
 
 
 # ---------------- Helpers ----------------
