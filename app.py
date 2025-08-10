@@ -172,6 +172,42 @@ def me(user: User = Depends(current_user)):
 def health():
     return {"ok": True, "version": app.version}
 
+# ---- Debug（看伺服器實際收到的 Authorization）----
+from typing import Optional, Annotated
+from fastapi import Header
+import json
+
+@app.get("/debug/echo_auth")
+def debug_echo_auth(Authorization: Annotated[Optional[str], Header()] = None):
+    return {"authorization": Authorization}
+
+# ---- Debug（解碼 token + 檢查 DB 是否有該用戶）----
+@app.get("/debug/decode")
+def debug_decode(Authorization: Annotated[Optional[str], Header()] = None):
+    if not Authorization or not Authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Missing token")
+    token = Authorization.split(" ", 1)[1].strip()
+    try:
+        data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except Exception as e:
+        print(f"[DEBUG][JWT ERROR] {str(e)}")
+        raise HTTPException(401, f"JWT decode error: {str(e)}")
+
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.id == data.get("uid")).first()
+        result = {
+            "decoded": data,
+            "db_user": None if not user else {
+                "id": user.id,
+                "email": user.email,
+                "is_admin": user.is_admin,
+                "role": user.role
+            }
+        }
+        print("[DEBUG][JWT DECODE]", json.dumps(result, ensure_ascii=False))
+        return result
+
+
 # ---- Debug（只用來檢查實際收到的 Authorization；之後可以移除）----
 @app.get("/debug/echo_auth")
 def debug_echo_auth(Authorization: Annotated[Optional[str], Header()] = None):
