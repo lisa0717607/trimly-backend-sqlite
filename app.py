@@ -50,13 +50,22 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # CORS
+
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://trimly-frontend.onrender.com", # 假設的線上前端網域
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins, # <--- 使用我們定義的白名單
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+ )
+
 
 # ---------------- Schemas ----------------
 class RegisterBody(BaseModel):
