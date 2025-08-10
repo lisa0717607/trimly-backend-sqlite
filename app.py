@@ -2,7 +2,7 @@ import os, time
 from datetime import datetime
 from typing import Optional, Annotated
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Headerapp = 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel, EmailStr
@@ -22,7 +22,7 @@ ADMIN_EMAILS = {
 
 # ---------------- App & OpenAPI ----------------
 init_db()
-app = FastAPI(title="Trimly API — Phase 0 (SQLite Clean Backend)", version="0.1.0")
+app = FastAPI(title="Trimly API — Phase 0 (SQLite Clean Backend)", version="0.1.1")
 
 def custom_openapi():
     if app.openapi_schema:
