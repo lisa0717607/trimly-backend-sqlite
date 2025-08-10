@@ -1,7 +1,6 @@
-import os
-import time
+import os, time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +12,7 @@ from passlib.hash import bcrypt
 
 from models import init_db, SessionLocal, User
 
-# === Environment ===
+# ---------------- Config ----------------
 JWT_SECRET = os.environ.get("JWT_SECRET", "dev_secret_change_me")
 ADMIN_EMAILS = {
     e.strip().lower()
@@ -21,23 +20,20 @@ ADMIN_EMAILS = {
     if e.strip()
 }
 
-# === DB init ===
+# ---------------- App & OpenAPI ----------------
 init_db()
-
-# === FastAPI app ===
 app = FastAPI(title="Trimly API — Phase 0 (SQLite Clean Backend)", version="0.1.0")
 
-# --- Swagger Authorize (JWT Bearer) ---
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
-
     schema = get_openapi(
         title=app.title,
         version=app.version,
         description="Trimly backend API — clean SQLite build",
         routes=app.routes,
     )
+    # Bearer 定義
     components = schema.setdefault("components", {})
     security_schemes = components.setdefault("securitySchemes", {})
     security_schemes["BearerAuth"] = {
@@ -45,18 +41,16 @@ def custom_openapi():
         "scheme": "bearer",
         "bearerFormat": "JWT",
     }
-    # 讓所有路由預設使用 BearerAuth（Swagger 右上 Authorize 後自動帶 Token）
+    # 讓所有路由預設套用 Bearer（右上鎖頭）
     for path in schema.get("paths", {}).values():
         for op in path.values():
             op.setdefault("security", []).append({"BearerAuth": []})
-
     app.openapi_schema = schema
     return app.openapi_schema
 
 app.openapi = custom_openapi
-# --- end Swagger Authorize ---
 
-# === CORS ===
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -65,7 +59,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# === Pydantic Schemas ===
+# ---------------- Schemas ----------------
 class RegisterBody(BaseModel):
     email: EmailStr
     password: str
@@ -74,7 +68,7 @@ class LoginBody(BaseModel):
     email: EmailStr
     password: str
 
-# === Helpers ===
+# ---------------- Helpers ----------------
 def get_db():
     db = SessionLocal()
     try:
@@ -82,7 +76,7 @@ def get_db():
     finally:
         db.close()
 
-def month_key_now() -> str:
+def month_key_now():
     now = datetime.utcnow()
     return f"{now.year:04}-{now.month:02}"
 
@@ -102,17 +96,18 @@ def create_token(user: User) -> str:
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-def current_user(Authorization: str = Header(default="")) -> User:
-    # Authorization: Bearer <token>
+# 把 Authorization 從 Swagger 參數隱藏（include_in_schema=False）
+def current_user(
+    Authorization: Annotated[Optional[str], Header(include_in_schema=False)] = None
+) -> User:
     if not Authorization or not Authorization.lower().startswith("bearer "):
         raise HTTPException(401, "Missing token")
-    token = Authorization.split(" ", 1)[1].strip()  # 去除前後空白，避免解析失敗
+    token = Authorization.split(" ", 1)[1].strip()
     try:
         data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         uid = data["uid"]
     except Exception:
         raise HTTPException(401, "Invalid token")
-
     with SessionLocal() as db:
         user = db.query(User).filter(User.id == uid).first()
         if not user:
@@ -125,12 +120,11 @@ def admin_only(user: User):
     if not user.is_admin:
         raise HTTPException(403, "Admin only")
 
-# === Routes ===
+# ---------------- Auth ----------------
 @app.post("/auth/register")
 def register(body: RegisterBody):
     email_norm = body.email.strip().lower()
     with SessionLocal() as db:
-        # 檢查 email 是否已存在（用規範化欄位）
         if db.query(User).filter(User.email_norm == email_norm).first():
             raise HTTPException(400, "Email already registered")
         u = User(
@@ -143,14 +137,9 @@ def register(body: RegisterBody):
             updated_at=datetime.utcnow(),
         )
         ensure_monthly_quota(u)
-        db.add(u)
-        db.commit()
-        db.refresh(u)
+        db.add(u); db.commit(); db.refresh(u)
         token = create_token(u)
-        return {
-            "token": token,
-            "user": {"email": u.email, "is_admin": u.is_admin, "role": u.role},
-        }
+        return {"token": token, "user": {"email": u.email, "is_admin": u.is_admin, "role": u.role}}
 
 @app.post("/auth/login")
 def login(body: LoginBody):
@@ -159,19 +148,14 @@ def login(body: LoginBody):
         u = db.query(User).filter(User.email_norm == email_norm).first()
         if not u or not bcrypt.verify(body.password, u.password_hash):
             raise HTTPException(401, "Invalid credentials")
-
-        # 動態同步 Admin 標記（以 ENV 為準）
         should_admin = (email_norm in ADMIN_EMAILS)
         if u.is_admin != should_admin:
             u.is_admin = should_admin
             db.commit()
-
         token = create_token(u)
-        return {
-            "token": token,
-            "user": {"email": u.email, "is_admin": u.is_admin, "role": u.role},
-        }
+        return {"token": token, "user": {"email": u.email, "is_admin": u.is_admin, "role": u.role}}
 
+# ---------------- API ----------------
 @app.get("/me")
 def me(user: User = Depends(current_user)):
     return {
@@ -186,3 +170,8 @@ def me(user: User = Depends(current_user)):
 @app.get("/api/health")
 def health():
     return {"ok": True, "version": app.version}
+
+# ---- Debug（只用來檢查實際收到的 Authorization；之後可以移除）----
+@app.get("/debug/echo_auth")
+def debug_echo_auth(Authorization: Annotated[Optional[str], Header()] = None):
+    return {"authorization": Authorization}
