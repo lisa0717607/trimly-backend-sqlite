@@ -81,11 +81,25 @@ def month_key_now():
     now = datetime.utcnow()
     return f"{now.year:04}-{now.month:02}"
 
-def ensure_monthly_quota(user: User):
-    mk = month_key_now()
-    if user.last_quota_reset_month != mk:
-        user.free_quota_seconds_remaining = 1800
-        user.last_quota_reset_month = mk
+@app.get("/me")
+def me(user: User = Depends(current_user)):
+    # 全部用 getattr，缺欄位或 None 都有安全預設值
+    email = getattr(user, "email", "")
+    role = getattr(user, "role", "free")
+    is_admin = bool(getattr(user, "is_admin", False))
+    minutes_balance_seconds = int(getattr(user, "minutes_balance_seconds", 0) or 0)
+    free_quota_seconds_remaining = int(getattr(user, "free_quota_seconds_remaining", 0) or 0)
+    last_quota_reset_month = getattr(user, "last_quota_reset_month", "") or ""
+
+    return {
+        "email": email,
+        "role": role,
+        "is_admin": is_admin,
+        "minutes_balance_seconds": minutes_balance_seconds,
+        "free_quota_seconds_remaining": free_quota_seconds_remaining,
+        "last_quota_reset_month": last_quota_reset_month,
+    }
+
 
 def create_token(user: User) -> str:
     payload = {
