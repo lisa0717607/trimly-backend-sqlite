@@ -9,6 +9,7 @@ from models_extended import (
     ContentSummary, UsageLog, SessionLocal
 )
 from audio_processing import audio_processor, editing_engine
+from ai_enhancement_services import audio_enhancement_service, content_summary_service
 from utils import safe_json_dumps, safe_json_loads, get_processed_path
 
 class BackgroundTaskManager:
@@ -143,7 +144,8 @@ class BackgroundTaskManager:
         finally:
             db.close()
     
-    async def process_ai_enhancement(self, audio_file_id: int, enhancement_type: str, user_id: int):
+    async def process_ai_enhancement(self, audio_file_id: int, enhancement_type: str, 
+                                   user_id: int, provider: str = "openai"):
         """處理 AI 音質增強任務"""
         db = SessionLocal()
         try:
@@ -167,7 +169,7 @@ class BackgroundTaskManager:
             
             # 準備輸出路徑
             output_dir = get_processed_path(user_id, audio_file.project_id)
-            output_filename = f"enhanced_{enhancement_type}_{audio_file.filename}"
+            output_filename = f"enhanced_{enhancement_type}_{provider}_{audio_file.filename}"
             output_path = os.path.join(output_dir, output_filename)
             
             ai_enhancement.output_file_path = output_path
@@ -175,25 +177,33 @@ class BackgroundTaskManager:
             start_time = datetime.utcnow()
             
             try:
-                # 這裡應該調用實際的 AI 增強服務
-                # 目前先模擬處理
-                await self._simulate_ai_enhancement(audio_file.file_path, output_path, enhancement_type)
-                
-                ai_enhancement.status = "completed"
-                ai_enhancement.completed_at = datetime.utcnow()
-                ai_enhancement.processing_duration_seconds = (datetime.utcnow() - start_time).total_seconds()
-                ai_enhancement.api_provider = "simulated"
-                
-                # 記錄使用量
-                usage_log = UsageLog(
-                    user_id=user_id,
-                    action="enhance",
-                    resource_type="ai_enhancement",
-                    resource_id=ai_enhancement.id,
-                    duration_seconds=audio_file.duration_seconds or 0,
-                    cost_credits=1  # AI 增強消耗 1 點數
+                # 使用真實的 AI 增強服務
+                result = await audio_enhancement_service.enhance_audio(
+                    audio_file.file_path, 
+                    output_path, 
+                    enhancement_type,
+                    provider
                 )
-                db.add(usage_log)
+                
+                if result["success"]:
+                    ai_enhancement.status = "completed"
+                    ai_enhancement.completed_at = datetime.utcnow()
+                    ai_enhancement.processing_duration_seconds = result["processing_time_seconds"]
+                    ai_enhancement.api_provider = provider
+                    ai_enhancement.enhancement_details = safe_json_dumps(result)
+                    
+                    # 記錄使用量
+                    usage_log = UsageLog(
+                        user_id=user_id,
+                        action="enhance",
+                        resource_type="ai_enhancement",
+                        resource_id=ai_enhancement.id,
+                        duration_seconds=audio_file.duration_seconds or 0,
+                        cost_credits=2  # AI 增強消耗 2 點數
+                    )
+                    db.add(usage_log)
+                else:
+                    raise Exception(result.get("error", "Enhancement failed"))
                 
             except Exception as e:
                 ai_enhancement.status = "error"
@@ -206,7 +216,8 @@ class BackgroundTaskManager:
         finally:
             db.close()
     
-    async def process_content_summary(self, transcript_id: int, summary_type: str, user_id: int):
+    async def process_content_summary(self, transcript_id: int, summary_type: str, 
+                                     user_id: int, language: str = "zh-TW", custom_prompt: str = None):
         """處理內容摘要生成任務"""
         db = SessionLocal()
         try:
@@ -237,25 +248,39 @@ class BackgroundTaskManager:
                 if not text_content:
                     raise Exception("No text content found in transcript")
                 
-                # 生成摘要
-                summary_content = await self._generate_summary(text_content, summary_type)
-                
-                content_summary.content = summary_content
-                content_summary.status = "completed"
-                content_summary.completed_at = datetime.utcnow()
-                content_summary.processing_duration_seconds = (datetime.utcnow() - start_time).total_seconds()
-                content_summary.token_count = len(summary_content.split())
-                
-                # 記錄使用量
-                usage_log = UsageLog(
-                    user_id=user_id,
-                    action="summarize",
-                    resource_type="content_summary",
-                    resource_id=content_summary.id,
-                    duration_seconds=0,
-                    cost_credits=1  # 摘要生成消耗 1 點數
+                # 使用真實的摘要生成服務
+                result = await content_summary_service.generate_summary(
+                    text_content, 
+                    summary_type, 
+                    language,
+                    custom_prompt
                 )
-                db.add(usage_log)
+                
+                if result["success"]:
+                    content_summary.content = result["content"]
+                    content_summary.status = "completed"
+                    content_summary.completed_at = datetime.utcnow()
+                    content_summary.processing_duration_seconds = result["processing_time_seconds"]
+                    content_summary.token_count = result["token_count"]
+                    content_summary.summary_metadata = safe_json_dumps({
+                        "language": language,
+                        "model_used": result["model_used"],
+                        "quality_metrics": result["quality_metrics"],
+                        "character_count": result["character_count"]
+                    })
+                    
+                    # 記錄使用量
+                    usage_log = UsageLog(
+                        user_id=user_id,
+                        action="summarize",
+                        resource_type="content_summary",
+                        resource_id=content_summary.id,
+                        duration_seconds=0,
+                        cost_credits=1  # 摘要生成消耗 1 點數
+                    )
+                    db.add(usage_log)
+                else:
+                    raise Exception(result.get("error", "Summary generation failed"))
                 
             except Exception as e:
                 content_summary.status = "error"
@@ -264,6 +289,74 @@ class BackgroundTaskManager:
                 content_summary.processing_duration_seconds = (datetime.utcnow() - start_time).total_seconds()
             
             db.commit()
+            
+        finally:
+            db.close()
+    
+    async def process_multiple_summaries(self, transcript_id: int, summary_types: List[str], 
+                                       user_id: int, language: str = "zh-TW"):
+        """處理多種類型摘要生成任務"""
+        db = SessionLocal()
+        try:
+            # 取得逐字稿
+            transcript = db.query(Transcript).filter(Transcript.id == transcript_id).first()
+            if not transcript or transcript.status != "completed":
+                return
+            
+            # 解析逐字稿內容
+            transcript_data = safe_json_loads(transcript.content, {})
+            text_content = transcript_data.get("text", "")
+            
+            if not text_content:
+                raise Exception("No text content found in transcript")
+            
+            # 使用批量摘要服務
+            result = await content_summary_service.generate_multiple_summaries(
+                text_content, summary_types, language
+            )
+            
+            # 為每個成功的摘要建立記錄
+            created_summaries = []
+            
+            for summary_type, summary_result in result["summaries"].items():
+                if summary_result.get("success"):
+                    content_summary = ContentSummary(
+                        transcript_id=transcript_id,
+                        summary_type=summary_type,
+                        content=summary_result["content"],
+                        status="completed",
+                        completed_at=datetime.utcnow(),
+                        processing_duration_seconds=summary_result["processing_time_seconds"],
+                        token_count=summary_result["token_count"],
+                        summary_metadata=safe_json_dumps({
+                            "language": language,
+                            "model_used": summary_result["model_used"],
+                            "quality_metrics": summary_result["quality_metrics"],
+                            "character_count": summary_result["character_count"]
+                        })
+                    )
+                    
+                    db.add(content_summary)
+                    created_summaries.append(content_summary)
+                    
+                    # 記錄使用量
+                    usage_log = UsageLog(
+                        user_id=user_id,
+                        action="summarize",
+                        resource_type="content_summary",
+                        resource_id=content_summary.id,
+                        duration_seconds=0,
+                        cost_credits=1
+                    )
+                    db.add(usage_log)
+            
+            db.commit()
+            
+            return {
+                "total_requested": len(summary_types),
+                "successful_summaries": len(created_summaries),
+                "created_summaries": [s.id for s in created_summaries]
+            }
             
         finally:
             db.close()

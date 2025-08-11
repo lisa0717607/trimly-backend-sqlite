@@ -27,6 +27,8 @@ from utils import (
 
 # 導入 AI 功能 API
 from api_endpoints import router as ai_router
+from project_api import router as project_router
+from ai_enhancement_api import router as ai_enhancement_router
 
 # 建立 FastAPI 應用
 app = FastAPI(
@@ -46,6 +48,8 @@ app.add_middleware(
 
 # 註冊 AI 功能路由
 app.include_router(ai_router)
+app.include_router(project_router)
+app.include_router(ai_enhancement_router)
 
 # 初始化資料庫
 @app.on_event("startup")
@@ -53,6 +57,8 @@ async def startup_event():
     init_db()
     print("Database initialized successfully")
     print("AI Audio Processing features enabled")
+    print("Project Management and Version Control enabled")
+    print("Advanced AI Enhancement and Summary features enabled")
 
 # 錯誤處理
 @app.exception_handler(TrimlyException)
