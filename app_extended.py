@@ -29,6 +29,8 @@ from utils import (
 from api_endpoints import router as ai_router
 from project_api import router as project_router
 from ai_enhancement_api import router as ai_enhancement_router
+from subscription_api import router as subscription_router
+from account_api import router as account_router
 
 # 建立 FastAPI 應用
 app = FastAPI(
@@ -50,15 +52,20 @@ app.add_middleware(
 app.include_router(ai_router)
 app.include_router(project_router)
 app.include_router(ai_enhancement_router)
+app.include_router(subscription_router)
+app.include_router(account_router)
 
 # 初始化資料庫
 @app.on_event("startup")
 async def startup_event():
-    init_db()
+    from models_extended import init_all_db
+    init_all_db()
     print("Database initialized successfully")
     print("AI Audio Processing features enabled")
     print("Project Management and Version Control enabled")
     print("Advanced AI Enhancement and Summary features enabled")
+    print("Subscription and Payment system enabled")
+    print("Account Management and Billing system enabled")
 
 # 錯誤處理
 @app.exception_handler(TrimlyException)

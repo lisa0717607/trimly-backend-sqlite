@@ -183,3 +183,27 @@ def get_db():
     finally:
         db.close()
 
+
+
+# 導入訂閱相關模型
+from subscription_models import (
+    SubscriptionPlan, UserSubscription, Payment, UsageQuota, 
+    PromoCode, PromoCodeRedemption, Invoice
+)
+
+# 初始化所有資料表（包括訂閱相關）
+def init_all_db():
+    """初始化所有資料庫表格，包括訂閱系統"""
+    # 先初始化基本表格
+    init_db()
+    
+    # 初始化訂閱相關表格
+    from subscription_models import Base as SubscriptionBase
+    SubscriptionBase.metadata.create_all(bind=engine)
+    
+    # 初始化預設訂閱方案
+    from subscription_service import subscription_service
+    subscription_service.initialize_default_plans()
+    
+    print("All database tables initialized, including subscription system")
+
