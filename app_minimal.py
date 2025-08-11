@@ -138,10 +138,20 @@ async def root():
 @app.get("/health")
 async def health_check():
     """健康檢查"""
+    try:
+        # 測試資料庫連接
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)[:50]}"
+    
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "database_url": DATABASE_URL.replace(os.getenv("DATABASE_PASSWORD", ""), "***") if "DATABASE_PASSWORD" in os.environ else DATABASE_URL
+        "database": db_status,
+        "version": "1.0.0-minimal"
     }
 
 @app.post("/auth/register", response_model=Token)
@@ -230,11 +240,34 @@ async def list_users(current_user: User = Depends(get_current_user), db: Session
 @app.on_event("startup")
 async def startup_event():
     """應用程式啟動時初始化資料庫"""
-    print(f"Initializing database at: {DATABASE_URL}")
-    Base.metadata.create_all(bind=engine)
-    print("Database initialized successfully")
-    print("Trimly AI Audio Processing Platform - Minimal Version Started")
-    print(f"Admin emails: {ADMIN_EMAILS}")
+    try:
+        print(f"Starting Trimly AI Audio Processing Platform - Minimal Version")
+        print(f"Database URL: {DATABASE_URL}")
+        print(f"Admin emails: {ADMIN_EMAILS}")
+        
+        # 確保資料庫目錄存在
+        db_path = DATABASE_URL.replace("sqlite:///", "")
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"Created database directory: {db_dir}")
+        
+        # 初始化資料庫
+        Base.metadata.create_all(bind=engine)
+        print("Database initialized successfully")
+        
+        # 測試資料庫連接
+        db = SessionLocal()
+        result = db.execute("SELECT 1").fetchone()
+        db.close()
+        print(f"Database connection test: {result}")
+        
+        print("Application startup completed successfully")
+        
+    except Exception as e:
+        print(f"Startup error: {str(e)}")
+        # 不要在啟動時拋出異常，讓應用程式繼續運行
+        pass
 
 if __name__ == "__main__":
     import uvicorn

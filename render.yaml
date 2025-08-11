@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: trimly-backend-sqlite
+    env: python
+    plan: starter
+    region: singapore
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements_minimal_fixed.txt
+    startCommand: python app_minimal.py
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////var/data/trimly.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAILS
+        value: lisa0717607@gmail.com
+      - key: ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: PYTHONDONTWRITEBYTECODE
+        value: 1
+    disk:
+      name: trimly-data
+      mountPath: /var/data
+      sizeGB: 1
+

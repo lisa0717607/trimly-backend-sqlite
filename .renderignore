@@ -1,0 +1,71 @@
+# Render 部署時忽略的檔案和目錄
+
+# Python 快取檔案
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 開發環境檔案
+.env
+.env.local
+.env.development
+.env.test
+
+# IDE 檔案
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日誌檔案
+*.log
+logs/
+
+# 測試檔案
+test_*.py
+*_test.py
+tests/
+
+# 文件檔案
+*.md
+docs/
+
+# Git 檔案
+.git/
+.gitignore
+
+# 本地資料庫檔案
+*.db
+*.sqlite
+*.sqlite3
+
+# 暫存檔案
+tmp/
+temp/
+.tmp/
+
+# 備份檔案
+*.bak
+*.backup
+
+# 除錯檔案
+debug_*.py
+
+# 完整版本檔案（暫時不部署）
+app_extended.py
+requirements_extended.txt
+*_extended.*
+
+# API 檔案（暫時不部署）
+api_endpoints.py
+ai_enhancement_*.py
+project_*.py
+subscription_*.py
+account_*.py
+export_*.py
+file_*.py
+background_tasks.py
+audio_processing.py
+paypal_service.py
+
