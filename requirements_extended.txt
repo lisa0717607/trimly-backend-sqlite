@@ -1,0 +1,48 @@
+# FastAPI and related
+fastapi==0.95.2
+uvicorn
+
+# Pydantic and email validation
+pydantic[email]==1.10.15
+
+# Password hashing
+passlib[bcrypt]
+
+# JWT for authentication
+pyjwt
+
+# Database ORM
+sqlalchemy
+
+# 新增：音訊處理
+pydub
+librosa
+soundfile
+
+# 新增：檔案上傳和處理
+python-multipart
+aiofiles
+
+# 新增：HTTP 客戶端（用於第三方 API）
+httpx
+requests
+
+# 新增：OpenAI API
+openai
+
+# 新增：音訊格式轉換
+ffmpeg-python
+
+# 新增：CORS 支援
+fastapi-cors
+
+# 新增：背景任務
+celery
+redis
+
+# 新增：檔案類型檢測
+python-magic
+
+# 新增：JSON 處理
+orjson
+
