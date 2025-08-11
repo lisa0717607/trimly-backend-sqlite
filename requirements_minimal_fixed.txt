@@ -1,0 +1,10 @@
+# 最小化依賴套件 - 確保部署成功
+fastapi==0.95.2
+uvicorn[standard]==0.20.0
+python-multipart==0.0.5
+sqlalchemy==1.4.46
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+pydantic[email]==1.10.7
+bcrypt==4.0.1
+
