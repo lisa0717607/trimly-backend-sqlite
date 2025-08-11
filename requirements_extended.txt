@@ -46,3 +46,8 @@ python-magic
 # 新增：JSON 處理
 orjson
 
+# 新增：文件生成和匯出
+python-docx
+openpyxl
+reportlab
+weasyprint

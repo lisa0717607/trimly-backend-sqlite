@@ -31,6 +31,8 @@ from project_api import router as project_router
 from ai_enhancement_api import router as ai_enhancement_router
 from subscription_api import router as subscription_router
 from account_api import router as account_router
+from export_api import router as export_router
+from file_api import router as file_router
 
 # 建立 FastAPI 應用
 app = FastAPI(
@@ -54,6 +56,8 @@ app.include_router(project_router)
 app.include_router(ai_enhancement_router)
 app.include_router(subscription_router)
 app.include_router(account_router)
+app.include_router(export_router)
+app.include_router(file_router)
 
 # 初始化資料庫
 @app.on_event("startup")
@@ -66,6 +70,7 @@ async def startup_event():
     print("Advanced AI Enhancement and Summary features enabled")
     print("Subscription and Payment system enabled")
     print("Account Management and Billing system enabled")
+    print("Multi-format Export and File Management enabled")
 
 # 錯誤處理
 @app.exception_handler(TrimlyException)
