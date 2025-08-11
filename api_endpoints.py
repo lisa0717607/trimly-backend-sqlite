@@ -26,9 +26,9 @@ router = APIRouter(prefix="/api/v1", tags=["AI Audio Processing"])
 async def create_transcript(
     audio_id: int,
     transcript_data: TranscriptCreate,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """為音訊檔案建立逐字稿"""
     
@@ -137,9 +137,9 @@ async def get_transcript(
 async def edit_audio(
     audio_id: int,
     edit_request: EditRequest,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """執行音訊編輯操作"""
     
@@ -243,9 +243,9 @@ async def remove_filler_words(
     audio_id: int,
     language: str = "zh",
     version_name: str = None,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """一鍵移除填充詞"""
     
@@ -266,9 +266,9 @@ async def remove_keywords(
     audio_id: int,
     keywords: List[str],
     version_name: str = None,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """移除包含特定關鍵字的片段"""
     
@@ -330,9 +330,9 @@ async def search_keywords_in_transcript(
 async def enhance_audio(
     audio_id: int,
     enhancement_data: AIEnhancementCreate,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """AI 音質增強"""
     
@@ -410,9 +410,9 @@ async def get_audio_enhancements(
 async def create_content_summary(
     transcript_id: int,
     summary_data: ContentSummaryCreate,
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """生成內容摘要"""
     

@@ -265,7 +265,7 @@ class AccountManagementService:
             # 取消所有活躍訂閱
             subscription = subscription_service.get_user_subscription(user_id)
             if subscription:
-                await subscription_service.cancel_subscription(
+                subscription_service.cancel_subscription(
                     user_id, "Account deletion requested"
                 )
             

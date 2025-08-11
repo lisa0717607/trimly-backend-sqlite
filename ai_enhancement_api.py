@@ -24,9 +24,9 @@ async def enhance_audio_advanced(
     audio_id: int,
     enhancement_type: str = Query(..., description="Enhancement type: noise_reduction, speech_clarity, volume_normalize, full_enhance"),
     provider: str = Query("openai", description="AI provider: openai, adobe, dolby, krisp"),
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """進階 AI 音質改善"""
     
@@ -155,9 +155,9 @@ async def create_advanced_summary(
     summary_type: str = Query(..., description="Summary type: summary, highlights, social_posts, key_points, action_items, questions"),
     language: str = Query("zh-TW", description="Language: zh-TW, zh-CN, en"),
     custom_prompt: Optional[str] = Query(None, description="Custom prompt for summary generation"),
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """進階內容摘要生成"""
     
@@ -231,9 +231,9 @@ async def create_batch_summaries(
     transcript_id: int,
     summary_types: List[str] = Query(..., description="List of summary types to generate"),
     language: str = Query("zh-TW", description="Language: zh-TW, zh-CN, en"),
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """批量生成多種類型的摘要"""
     

@@ -1,0 +1,5 @@
+# 最小化依賴套件 - 用於除錯部署問題
+fastapi==0.95.2
+uvicorn[standard]==0.20.0
+python-multipart==0.0.5
+

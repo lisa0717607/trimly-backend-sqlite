@@ -53,9 +53,9 @@ class FileCopyRequest(BaseModel):
 async def upload_audio_file(
     project_id: int,
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks,
     current_user = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = Depends()
 ):
     """上傳音訊檔案到專案"""
     
