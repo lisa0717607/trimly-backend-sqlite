@@ -3,24 +3,12 @@ from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# --- vvv NEW CODE vvv ---
-# 1. 從環境變數讀取持久化硬碟的路徑。
-#    如果在 Render 上，這個值會是 /var/data (我們稍後會設定)。
-#    如果在本機或其他環境，它會使用當前目錄下的 'local_data' 資料夾作為備用。
-DATA_DIR = os.environ.get("RENDER_DISK_PATH", "local_data")
+# 檢查環境變數中是否有指定資料庫路徑，若無，則使用預設的持久化路徑
+# 這個預設路徑 /var/data/trimly.db 正是我們在 Render 上設定的硬碟掛載點
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:////var/data/trimly.db")
 
-# 2. 確保這個資料夾存在，如果不存在就自動建立。
-#    這可以防止因資料夾不存在而導致的錯誤。
-os.makedirs(DATA_DIR, exist_ok=True)
+print(f"Initializing database at: {DATABASE_URL}")  # 加上這行日誌，方便我們在 Render 上確認
 
-# 3. 組合出完整的資料庫檔案路徑。
-#    例如，在 Render 上它會變成 /var/data/trimly.db
-DB_FILE_PATH = os.path.join(DATA_DIR, "trimly.db")
-DATABASE_URL = f"sqlite:///{DB_FILE_PATH}"
-# --- ^^^ END OF NEW CODE ^^^ ---
-
-
-# 我們現在使用新的 DATABASE_URL，而不是寫死的路徑
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
@@ -48,7 +36,5 @@ class User(Base):
     )
 
 def init_db():
-    # 這行會印出資料庫實際儲存的路徑，方便您在 logs 中確認是否設定正確
-    print(f"Initializing database at: {DATABASE_URL}") 
     Base.metadata.create_all(bind=engine)
 
