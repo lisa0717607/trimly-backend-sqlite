@@ -1,0 +1,14 @@
+# 漸進式功能恢復版本依賴套件
+fastapi==0.95.2
+uvicorn[standard]==0.20.0
+python-multipart==0.0.5
+sqlalchemy==1.4.46
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+pydantic[email]==1.10.7
+bcrypt==4.0.1
+
+# AI 功能準備
+openai==0.28.1
+requests==2.31.0
+
